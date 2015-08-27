@@ -46,7 +46,7 @@ GWTS ears; //initialize GWTS Ears
 #define NUM_LEDS 340 //total number of pixels
 #define DATA_PIN 30 //pin pixels are connected to
 #define PIXEL_TYPE WS2811 //pixel type
-CRGB leds[NUM_LEDS]; //pixel array
+CRGB * leds; //pixel array
 int currentE131Universe; //stores current universe being received.
 int channel; //channel for pixels
 int channelwidth = 3; //each pixels needs three channels.
@@ -79,6 +79,7 @@ void setup()
   aUDP.begin(ARTNET_PORT);
   suUDP.begin(E131_PORT);
   Serial.begin(9600);
+  leds = (CRBG* ) &pbuff[E131_ADDRESS_OFFSET];
   FastLED.addLeds<PIXEL_TYPE, DATA_PIN, RGB>(leds, NUM_LEDS); //initialize pixels
   POST(); //run power on self test function
   Serial.println("Setup Complete"); //print complete
@@ -86,8 +87,8 @@ void setup()
 
 /* artDMXReceived checks the universe and subnet then
 outputs the data to FastLED and GWTS */
-
-void artDMXReceived(unsigned char* pbuff)
+//removing support for artnet cause this isnt necessary - just cornfusing
+/*void artDMXReceived(unsigned char* pbuff)
 {
   if ( (pbuff[14] & 0xF) == ARTNET_UNIVERSE )
   {
@@ -104,10 +105,10 @@ void artDMXReceived(unsigned char* pbuff)
   ears.set_colors(pbuff[GWTS_START_ADDRESS_ARTNET],pbuff[GWTS_START_ADDRESS_ARTNET + 1],pbuff[GWTS_START_ADDRESS_ARTNET + 2],pbuff[GWTS_START_ADDRESS_ARTNET + 3],pbuff[GWTS_START_ADDRESS_ARTNET + 4],pbuff[GWTS_START_ADDRESS_ARTNET + 5]); //output to GWTS ears
   FastLED.show();
 }
-
+*/
 /*  artNetOpCode checks to see that the packet is actually Art-Net
 and returns the opcode telling what kind of Art-Net message it is.  */
-
+/*
 int artNetOpCode(unsigned char* pbuff)
 {
   String test = String((char*)pbuff);
@@ -121,7 +122,7 @@ int artNetOpCode(unsigned char* pbuff)
   
   return 0;
 }
-
+*/
 /* sacnDMXReceived checks the universe and subnet then
 outputs the data to FastLED and GWTS  */
 
@@ -135,19 +136,20 @@ void sacnDMXReceived(unsigned char* pbuff, int count)
       currentE131Universe = pbuff[114];  //Byte 114 is the universe number in the packet
       if ( currentE131Universe >= E131_START_UNIVERSE && currentE131Universe <= E131_START_UNIVERSE + UNIVERSE_COUNT ) //is the universe received equal to the start universe or within the universe count range
       {
-        startPixel = (currentE131Universe - E131_START_UNIVERSE) * PIXELS_PER_UNIVERSE; //set start channel based on universe received. Universe 1 would be 0. Universe 2 would be 170.
-        channel = 1; //reset channel assignment to 1 each time through loop.
-        for(int i = startPixel; i < startPixel + PIXELS_PER_UNIVERSE; i++) //loop for LED pixels
-        {
-          leds[i] = CRGB(pbuff[E131_ADDRESS_OFFSET + channel], pbuff[E131_ADDRESS_OFFSET + (channel +1)], pbuff[E131_ADDRESS_OFFSET + (channel +2)]); //assign channel values to pixels
-          channel +=channelwidth; //increase last channel number by channel width
-        }
+      //  startPixel = (currentE131Universe - E131_START_UNIVERSE) * PIXELS_PER_UNIVERSE; //set start channel based on universe received. Universe 1 would be 0. Universe 2 would be 170.
+        //channel = 1; //reset channel assignment to 1 each time through loop.
+       // for(int i = startPixel; i < startPixel + PIXELS_PER_UNIVERSE; i++) //loop for LED pixels
+       // {
+        //  leds[i] = CRGB(pbuff[E131_ADDRESS_OFFSET + channel], pbuff[E131_ADDRESS_OFFSET + (channel +1)], pbuff[E131_ADDRESS_OFFSET + (channel +2)]); //assign channel values to pixels
+         // channel +=channelwidth; //increase last channel number by channel width
+        //}
+        
+        ears.set_colors(pbuff[GWTS_START_ADDRESS_E131],pbuff[GWTS_START_ADDRESS_E131 + 1],pbuff[GWTS_START_ADDRESS_E131 + 2],pbuff[GWTS_START_ADDRESS_E131 + 3],pbuff[GWTS_START_ADDRESS_E131 + 4],pbuff[GWTS_START_ADDRESS_E131 + 5]); //output to GWTS ears
+        FastLED.show();
       }
     }
     
   }
-  ears.set_colors(pbuff[GWTS_START_ADDRESS_E131],pbuff[GWTS_START_ADDRESS_E131 + 1],pbuff[GWTS_START_ADDRESS_E131 + 2],pbuff[GWTS_START_ADDRESS_E131 + 3],pbuff[GWTS_START_ADDRESS_E131 + 4],pbuff[GWTS_START_ADDRESS_E131 + 5]); //output to GWTS ears
-  FastLED.show();
 }
 
 //checks to see if packet is E1.31 data
@@ -185,28 +187,29 @@ void loop()
     digitalWrite(STATUS_LED, LOW); //turn LED off. Not receiving E1.31 or ArtNet.
   }
   
-  // first check to see if a packet is available on the Art-Net port
-  int packetSize = aUDP.parsePacket();
-  if( packetSize )
-  {
-    aUDP.read(packetBuffer, ETHERNET_BUFFER_MAX);
-    /* after reading the packet into the buffer, check to make sure
-    that it is an Art-Net packet and retrieve the opcode that
-    tells what kind of message it is                         */
-    int opcode = artNetOpCode(packetBuffer);
-    if ( opcode == ARTNET_ARTDMX )
-    {
-      Serial.println("ArtNet Packet Received");
-      artDMXReceived(packetBuffer);
-      currentcounter++;  //increase counter by 1 each time through
-      digitalWrite(STATUS_LED, HIGH); //turn status LED on
-    }
-  }
-  else
-  {
+  //artnet removal
+  //// first check to see if a packet is available on the Art-Net port
+  //int packetSize = aUDP.parsePacket();
+  //if( packetSize )
+  //{
+    //aUDP.read(packetBuffer, ETHERNET_BUFFER_MAX);
+    ///* after reading the packet into the buffer, check to make sure
+    //that it is an Art-Net packet and retrieve the opcode that
+    //tells what kind of message it is                         */
+    //int opcode = artNetOpCode(packetBuffer);
+    //if ( opcode != ARTNET_ARTDMX )
+    //{
+      //Serial.println("ArtNet Packet Received");
+      //artDMXReceived(packetBuffer);
+      //currentcounter++;  //increase counter by 1 each time through
+      //digitalWrite(STATUS_LED, HIGH); //turn status LED on
+    //}
+  //}
+  //else
+  //{
     /* then, if still no packet, check to see if a packet
     is available on the sACN unicastcast port         */
-    packetSize = suUDP.parsePacket();
+    int packetSize = suUDP.parsePacket();
     if( packetSize )
     {
       suUDP.read(packetBuffer, ETHERNET_BUFFER_MAX);
@@ -222,7 +225,7 @@ void loop()
       }
     }
     
-  }
+  //}
   
 } //End loop
 
